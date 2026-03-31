@@ -1,56 +1,71 @@
 # podview
 
+[![Release](https://img.shields.io/github/v/release/federivo/podview)](https://github.com/federivo/podview/releases)
 [![GitHub](https://img.shields.io/github/license/federivo/podview)](https://github.com/federivo/podview/blob/main/LICENSE)
 [![Bun](https://img.shields.io/badge/runtime-Bun-f9f1e1?logo=bun)](https://bun.sh)
 [![Kubernetes](https://img.shields.io/badge/kubernetes-client-326ce5?logo=kubernetes&logoColor=white)](https://kubernetes.io)
 [![TypeScript](https://img.shields.io/badge/lang-TypeScript-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 
-A terminal UI for browsing Kubernetes pod filesystems and spawning interactive shells. Navigate directories, view file contents, and shell into containers — all from your terminal.
+**Browse files, view content, and shell into your Kubernetes pods — without leaving the terminal.**
 
-## Why
-
-When debugging or inspecting running pods, the typical workflow involves chaining `kubectl exec` commands to list files, cat contents, and open shells. podview wraps all of that into a single interactive TUI with vim-style navigation, search, and type-ahead filtering.
+podview is an interactive TUI that replaces the repetitive `kubectl exec` workflow with vim-style navigation, real-time search, and type-ahead filtering across pods, directories, and files.
 
 ## Features
 
-- **Home screen** with context and namespace selection
-- **Pod list** with type-ahead filtering and status indicators
-- **Directory browser** with go-to path, filtering, and automatic `/var/www/html` detection
-- **File viewer** with line wrapping, `/` search, and vim-style scrolling (`j/k`, `g/G`, `Ctrl+F/B`)
-- **Interactive shell** into containers (`Ctrl+S`) — tries bash, falls back to sh
+- **Context & namespace selector** — switch clusters and namespaces from the home screen
+- **Pod list** — type-ahead filtering, status indicators, multi-container support
+- **Directory browser** — starts in the container's working directory, with go-to path and filtering
+- **File viewer** — line wrapping, `/` search with match highlighting, vim-style scrolling
+- **Interactive shell** — `Ctrl+S` to drop into bash (or sh) inside any container
 - **5 color themes** — Catppuccin Mocha, Dracula, Nord, Gruvbox Dark, Tokyo Night
 
-## Prerequisites
+## Installation
 
-- [Bun](https://bun.sh) runtime
-- A valid `~/.kube/config` (or `KUBECONFIG` environment variable)
-- A [Nerd Font](https://www.nerdfonts.com) for file icons (optional but recommended)
+### Download binary
 
-## Getting Started
+Grab the latest binary from [Releases](https://github.com/federivo/podview/releases):
 
 ```sh
-# Install dependencies
-bun install
+# macOS (Apple Silicon)
+curl -L https://github.com/federivo/podview/releases/latest/download/podview-darwin-arm64 -o podview
 
-# Run
-bun run start
-```
+# Linux (x64)
+curl -L https://github.com/federivo/podview/releases/latest/download/podview-linux-x64 -o podview
 
-## Build
+# Linux (ARM64)
+curl -L https://github.com/federivo/podview/releases/latest/download/podview-linux-arm64 -o podview
 
-Compile to a standalone binary:
-
-```sh
-bun run build
-```
-
-This produces a `podview` executable in the project root. Move it to a directory in your `$PATH` to use it from anywhere:
-
-```sh
+chmod +x podview
 sudo mv podview /usr/local/bin/
 ```
 
-## Keyboard Shortcuts
+### Build from source
+
+```sh
+git clone https://github.com/federivo/podview.git
+cd podview
+bun install
+bun run build
+sudo mv podview /usr/local/bin/
+```
+
+### Run directly with Bun
+
+```sh
+git clone https://github.com/federivo/podview.git
+cd podview
+bun install
+bun run start
+```
+
+## Prerequisites
+
+- A valid `~/.kube/config` (or `KUBECONFIG` environment variable)
+- A [Nerd Font](https://www.nerdfonts.com) for file icons (optional but recommended)
+- [Bun](https://bun.sh) runtime (only if building from source or running directly)
+
+<details>
+<summary><strong>Keyboard Shortcuts</strong></summary>
 
 ### Home Screen
 | Key | Action |
@@ -103,6 +118,8 @@ sudo mv podview /usr/local/bin/
 |-----|--------|
 | `Ctrl+]` | Exit shell and return to TUI |
 
+</details>
+
 ## Tech Stack
 
 - **Runtime** — [Bun](https://bun.sh)
@@ -110,7 +127,8 @@ sudo mv podview /usr/local/bin/
 - **Kubernetes** — [@kubernetes/client-node](https://github.com/kubernetes-client/javascript)
 - **Language** — TypeScript
 
-## Project Structure
+<details>
+<summary><strong>Project Structure</strong></summary>
 
 ```
 src/
@@ -140,10 +158,16 @@ src/
     launchShell.ts       Shell launch orchestration
 ```
 
+</details>
+
 ## TLS Notice
 
 By default, podview disables TLS certificate verification (`NODE_TLS_REJECT_UNAUTHORIZED=0` in `src/index.tsx`). This is set to support clusters with self-signed certificates, which is common in development and internal environments. If your cluster uses valid TLS certificates and you want strict verification, remove that line from `src/index.tsx`.
 
+## Contributing
+
+Contributions are welcome! Feel free to open issues or submit pull requests.
+
 ## License
 
-MIT
+[MIT](LICENSE)
