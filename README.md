@@ -1,5 +1,10 @@
 # podview
 
+[![GitHub](https://img.shields.io/github/license/federivo/podview)](https://github.com/federivo/podview/blob/main/LICENSE)
+[![Bun](https://img.shields.io/badge/runtime-Bun-f9f1e1?logo=bun)](https://bun.sh)
+[![Kubernetes](https://img.shields.io/badge/kubernetes-client-326ce5?logo=kubernetes&logoColor=white)](https://kubernetes.io)
+[![TypeScript](https://img.shields.io/badge/lang-TypeScript-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+
 A terminal UI for browsing Kubernetes pod filesystems and spawning interactive shells. Navigate directories, view file contents, and shell into containers — all from your terminal.
 
 ## Why
