@@ -14,7 +14,7 @@ When debugging or inspecting running pods, the typical workflow involves chainin
 ## Features
 
 - **Home screen** with context and namespace selection
-- **Pod list** with type-ahead filtering and status indicators
+- **Pod list** with `/` search, type-ahead filtering, and status indicators
 - **Directory browser** with go-to path, filtering, and automatic `/var/www/html` detection
 - **File viewer** with line wrapping, `/` search, and vim-style scrolling (`j/k`, `g/G`, `Ctrl+F/B`)
 - **Interactive shell** into containers (`Ctrl+S`) — tries bash, falls back to sh
@@ -65,11 +65,12 @@ sudo mv podview /usr/local/bin/
 |-----|--------|
 | `j/k` | Navigate |
 | `PgDn/PgUp` | Page navigation |
-| Type | Filter pods |
+| `/` | Search pods (filters list) |
+| Type | Quick filter (type-ahead) |
 | `Enter` | Select pod |
 | `Ctrl+S` | Shell into pod |
 | `Ctrl+R` | Refresh |
-| `Esc` | Back to home |
+| `Esc` | Cancel search / Back to home |
 | `Ctrl+Q` | Quit |
 
 ### Directory Browser

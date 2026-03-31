@@ -41,6 +41,8 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
   const [shellMode, setShellMode] = useState(false);
   const [filterText, setFilterText] = useState('');
   const filterTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [searchMode, setSearchMode] = useState(false);
+  const [searchText, setSearchText] = useState('');
 
   const clearFilterTimer = useCallback(() => {
     if (filterTimeout.current) {
@@ -58,13 +60,18 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
 
   useEffect(() => clearFilterTimer, [clearFilterTimer]);
 
-  const visibleHeight = Math.max(1, terminalHeight - (filterText ? 4 : 3));
+  const filteredPods = searchMode && searchText
+    ? pods.filter((p) => p.name.toLowerCase().includes(searchText.toLowerCase()))
+    : pods;
+
+  const headerLines = 1 + (filterText ? 1 : 0) + (searchMode ? 1 : 0);
+  const visibleHeight = Math.max(1, terminalHeight - headerLines - 1);
 
   useEffect(() => {
-    if (selectedIndex >= pods.length && pods.length > 0) {
-      setSelectedIndex(pods.length - 1);
+    if (selectedIndex >= filteredPods.length && filteredPods.length > 0) {
+      setSelectedIndex(filteredPods.length - 1);
     }
-  }, [pods.length, selectedIndex]);
+  }, [filteredPods.length, selectedIndex]);
 
   useEffect(() => {
     if (selectedIndex < scrollOffset) {
@@ -86,7 +93,7 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
     }
 
     if (key.ctrl && key.name === 's') {
-      const pod = pods[selectedIndex];
+      const pod = filteredPods[selectedIndex];
       if (pod) {
         if (pod.containers.length === 1) {
           launchShell(namespace, pod.name, pod.containers[0]!);
@@ -100,7 +107,7 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
     }
 
     if (selectingContainer) {
-      const pod = pods[selectedIndex];
+      const pod = filteredPods[selectedIndex];
       if (!pod) return;
 
       if (key.name === 'j' || key.name === 'down') {
@@ -127,12 +134,47 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
       return;
     }
 
+    if (searchMode) {
+      if (key.name === 'escape') {
+        setSearchMode(false);
+        setSearchText('');
+        setSelectedIndex(0);
+        setScrollOffset(0);
+        return;
+      } else if (key.name === 'return') {
+        const pod = filteredPods[selectedIndex];
+        if (pod) {
+          if (pod.containers.length === 1) {
+            onSelect(pod, pod.containers[0]!);
+          } else {
+            setSelectingContainer(true);
+            setContainerIndex(0);
+          }
+        }
+        return;
+      } else if (key.name === 'j' || key.name === 'down') {
+        setSelectedIndex((i) => Math.min(i + 1, filteredPods.length - 1));
+      } else if (key.name === 'k' || key.name === 'up') {
+        setSelectedIndex((i) => Math.max(i - 1, 0));
+      } else if (key.name === 'backspace') {
+        const next = searchText.slice(0, -1);
+        setSearchText(next);
+        setSelectedIndex(0);
+        setScrollOffset(0);
+      } else if (key.sequence && key.sequence.length === 1 && !key.ctrl && !key.meta) {
+        setSearchText((t) => t + key.sequence);
+        setSelectedIndex(0);
+        setScrollOffset(0);
+      }
+      return;
+    }
+
     if (key.name === 'j' || key.name === 'down') {
-      setSelectedIndex((i) => Math.min(i + 1, pods.length - 1));
+      setSelectedIndex((i) => Math.min(i + 1, filteredPods.length - 1));
     } else if (key.name === 'k' || key.name === 'up') {
       setSelectedIndex((i) => Math.max(i - 1, 0));
     } else if (key.name === 'pagedown' || (key.ctrl && key.name === 'f')) {
-      setSelectedIndex((i) => Math.min(i + visibleHeight, pods.length - 1));
+      setSelectedIndex((i) => Math.min(i + visibleHeight, filteredPods.length - 1));
     } else if (key.name === 'pageup' || (key.ctrl && key.name === 'b')) {
       setSelectedIndex((i) => Math.max(i - visibleHeight, 0));
     } else if (key.name === 'escape') {
@@ -149,15 +191,21 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
         setFilterText(next);
         if (next) {
           resetFilterTimer();
-          const idx = pods.findIndex((p) => p.name.toLowerCase().includes(next.toLowerCase()));
+          const idx = filteredPods.findIndex((p) => p.name.toLowerCase().includes(next.toLowerCase()));
           if (idx >= 0) setSelectedIndex(idx);
         } else {
           clearFilterTimer();
         }
       }
       return;
+    } else if (key.sequence === '/') {
+      setSearchMode(true);
+      setSearchText('');
+      setSelectedIndex(0);
+      setScrollOffset(0);
+      return;
     } else if (key.name === 'return') {
-      const pod = pods[selectedIndex];
+      const pod = filteredPods[selectedIndex];
       if (pod) {
         if (pod.containers.length === 1) {
           onSelect(pod, pod.containers[0]!);
@@ -170,7 +218,7 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
       const next = filterText + key.sequence;
       setFilterText(next);
       resetFilterTimer();
-      const idx = pods.findIndex((p) => p.name.toLowerCase().includes(next.toLowerCase()));
+      const idx = filteredPods.findIndex((p) => p.name.toLowerCase().includes(next.toLowerCase()));
       if (idx >= 0) setSelectedIndex(idx);
     }
   });
@@ -211,17 +259,25 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
     );
   }
 
-  const selectedPod = pods[selectedIndex];
+  const selectedPod = filteredPods[selectedIndex];
 
   return (
     <box flexDirection="column" width="100%" height="100%">
       <box height={1}>
         <text>
           <strong><span fg={theme.accent}>Pods in {namespace}</span></strong>
-          <span fg={theme.textDim}> ({pods.length} pods)</span>
+          <span fg={theme.textDim}> ({filteredPods.length}{searchMode ? `/${pods.length}` : ''} pods)</span>
         </text>
       </box>
-      {filterText && (
+      {searchMode && (
+        <box height={1}>
+          <text>
+            <span fg={theme.accent}>/{searchText}</span>
+            <span fg={theme.textDim}>{filteredPods.length === 0 ? ' — no matches' : ''}</span>
+          </text>
+        </box>
+      )}
+      {filterText && !searchMode && (
         <box height={1}>
           <text>
             <span fg={theme.warning}>Filter: {filterText}</span>
@@ -229,7 +285,7 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
         </box>
       )}
       <box flexDirection="column" flexGrow={1}>
-        {pods.slice(scrollOffset, scrollOffset + visibleHeight).map((pod, index) => {
+        {filteredPods.slice(scrollOffset, scrollOffset + visibleHeight).map((pod, index) => {
           const actualIndex = scrollOffset + index;
           const isSelected = actualIndex === selectedIndex;
           const statusColor = getStatusColor(pod.status, theme);
@@ -280,7 +336,9 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
       <box height={1} backgroundColor={theme.statusBar}>
         <text>
           <span fg={theme.text}>
-            {' '}j/k: navigate | PgDn/PgUp: page | type: filter | Enter: select | ^S: shell | ^R: refresh | Esc: back | ^Q: quit{' '}
+            {searchMode
+              ? ' j/k: navigate | Enter: select | Esc: cancel search '
+              : ' j/k: navigate | /: search | type: filter | Enter: select | ^S: shell | ^R: refresh | Esc: back | ^Q: quit '}
           </span>
         </text>
       </box>
