@@ -3,6 +3,7 @@ import { useKeyboard, useTerminalDimensions } from '@opentui/react';
 import type { KeyEvent } from '@opentui/core';
 import { useFileSystem } from '../hooks/useFileSystem';
 import { useTheme } from '../theme';
+import { launchShell } from '../services/launchShell';
 import { Breadcrumb } from './Breadcrumb';
 import { Spinner } from './Spinner';
 import type { PodInfo, FileEntry } from '../types';
@@ -148,6 +149,11 @@ export function FileExplorer({
 
     if (key.ctrl && key.name === 'r') {
       refresh();
+      return;
+    }
+
+    if (key.ctrl && key.name === 's') {
+      launchShell(pod.namespace, pod.name, container);
       return;
     }
 

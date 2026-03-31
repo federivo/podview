@@ -36,7 +36,7 @@ const LOGO = [
   ' ╚═╝      ╚═════╝ ╚═════╝   ╚═══╝  ╚═╝╚══════╝ ╚══╝╚══╝ ',
 ];
 
-const FIELDS = ['context', 'namespace', 'theme'] as const;
+const FIELDS = ['context', 'namespace', 'theme', 'continue'] as const;
 type Field = (typeof FIELDS)[number];
 
 export function HomeScreen({ onEnter, onThemeChange, onQuit }: HomeScreenProps) {
@@ -180,13 +180,12 @@ export function HomeScreen({ onEnter, onThemeChange, onQuit }: HomeScreenProps) 
       return;
     }
 
-    if (key.name === 'right') {
-      openDropdown();
-      return;
-    }
-
     if (key.name === 'return') {
-      onEnter(selectedContext, selectedNamespace);
+      if (activeField === 'continue') {
+        onEnter(selectedContext, selectedNamespace);
+      } else {
+        openDropdown();
+      }
       return;
     }
   });
@@ -268,7 +267,7 @@ export function HomeScreen({ onEnter, onThemeChange, onQuit }: HomeScreenProps) 
               {selectedContext}
             </span>
             {activeField === 'context' && !dropdownOpen && (
-              <span fg={theme.textDim}> (→ to change)</span>
+              <span fg={theme.textDim}> (Enter to change)</span>
             )}
           </text>
         </box>
@@ -286,7 +285,7 @@ export function HomeScreen({ onEnter, onThemeChange, onQuit }: HomeScreenProps) 
               {loadingNamespaces ? 'loading...' : selectedNamespace}
             </span>
             {activeField === 'namespace' && !dropdownOpen && !loadingNamespaces && (
-              <span fg={theme.textDim}> (→ to change)</span>
+              <span fg={theme.textDim}> (Enter to change)</span>
             )}
           </text>
         </box>
@@ -315,7 +314,7 @@ export function HomeScreen({ onEnter, onThemeChange, onQuit }: HomeScreenProps) 
               {theme.name}
             </span>
             {activeField === 'theme' && !dropdownOpen && (
-              <span fg={theme.textDim}> (→ to change)</span>
+              <span fg={theme.textDim}> (Enter to change)</span>
             )}
           </text>
         </box>
@@ -324,11 +323,14 @@ export function HomeScreen({ onEnter, onThemeChange, onQuit }: HomeScreenProps) 
 
       <box height={2} />
 
+      {/* Continue button */}
       <box height={1} justifyContent="center">
         <text>
-          <span fg={theme.textSecondary}>Press </span>
-          <span fg={theme.accent}>Enter</span>
-          <span fg={theme.textSecondary}> to continue</span>
+          {activeField === 'continue' ? (
+            <span fg={theme.accent}>▸ [ Continue ] ◂</span>
+          ) : (
+            <span fg={theme.textDim}>  [ Continue ]  </span>
+          )}
         </text>
       </box>
 
@@ -337,7 +339,7 @@ export function HomeScreen({ onEnter, onThemeChange, onQuit }: HomeScreenProps) 
       <box height={1} width="100%" backgroundColor={theme.statusBar}>
         <text>
           <span fg={theme.text}>
-            {' '}j/k: switch field | →: change value | Enter: continue | ^Q: quit{' '}
+            {' '}j/k: switch field | Enter: select/continue | Esc: close | ^Q: quit{' '}
           </span>
         </text>
       </box>

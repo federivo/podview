@@ -18,7 +18,7 @@ export function StatusBar({ view, context, searchMode }: StatusBarProps) {
   } else if (view === 'viewer') {
     helpText = 'j/k: scroll | PgDn/PgUp: page | /: search | n/N: next/prev | Esc: back | ^Q: quit';
   } else {
-    helpText = 'j/k: navigate | PgDn/PgUp: page | type: filter | Enter: open | ^G: go to | Backspace: parent | Esc: pods | ^Q: quit';
+    helpText = 'j/k: navigate | PgDn/PgUp: page | type: filter | Enter: open | ^S: shell | ^G: go to | Backspace: parent | Esc: pods | ^Q: quit';
   }
 
   return (

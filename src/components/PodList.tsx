@@ -4,6 +4,7 @@ import type { KeyEvent } from '@opentui/core';
 import { usePods } from '../hooks/usePods';
 import { useTheme } from '../theme';
 import type { Theme } from '../theme';
+import { launchShell } from '../services/launchShell';
 import { Spinner } from './Spinner';
 import type { PodInfo } from '../types';
 
@@ -37,6 +38,7 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
   const [scrollOffset, setScrollOffset] = useState(0);
   const [containerIndex, setContainerIndex] = useState(0);
   const [selectingContainer, setSelectingContainer] = useState(false);
+  const [shellMode, setShellMode] = useState(false);
   const [filterText, setFilterText] = useState('');
   const filterTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -83,6 +85,20 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
       return;
     }
 
+    if (key.ctrl && key.name === 's') {
+      const pod = pods[selectedIndex];
+      if (pod) {
+        if (pod.containers.length === 1) {
+          launchShell(namespace, pod.name, pod.containers[0]!);
+        } else {
+          setShellMode(true);
+          setSelectingContainer(true);
+          setContainerIndex(0);
+        }
+      }
+      return;
+    }
+
     if (selectingContainer) {
       const pod = pods[selectedIndex];
       if (!pod) return;
@@ -94,11 +110,19 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
       } else if (key.name === 'return') {
         const container = pod.containers[containerIndex];
         if (container) {
-          onSelect(pod, container);
+          if (shellMode) {
+            launchShell(namespace, pod.name, container);
+            setShellMode(false);
+          } else {
+            onSelect(pod, container);
+          }
         }
+        setSelectingContainer(false);
+        setContainerIndex(0);
       } else if (key.name === 'escape') {
         setSelectingContainer(false);
         setContainerIndex(0);
+        setShellMode(false);
       }
       return;
     }
@@ -256,7 +280,7 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
       <box height={1} backgroundColor={theme.statusBar}>
         <text>
           <span fg={theme.text}>
-            {' '}j/k: navigate | PgDn/PgUp: page | type: filter | Enter: select | ^R: refresh | Esc: back | ^Q: quit{' '}
+            {' '}j/k: navigate | PgDn/PgUp: page | type: filter | Enter: select | ^S: shell | ^R: refresh | Esc: back | ^Q: quit{' '}
           </span>
         </text>
       </box>
