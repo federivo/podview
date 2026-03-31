@@ -13,7 +13,7 @@ podview is an interactive TUI that replaces the repetitive `kubectl exec` workfl
 ## Features
 
 - **Context & namespace selector** — switch clusters and namespaces from the home screen
-- **Pod list** — type-ahead filtering, status indicators, multi-container support
+- **Pod list** — `/` search, type-ahead filtering, status indicators, multi-container support
 - **Directory browser** — starts in the container's working directory, with go-to path and filtering
 - **File viewer** — line wrapping, `/` search with match highlighting, vim-style scrolling
 - **Interactive shell** — `Ctrl+S` to drop into bash (or sh) inside any container
@@ -80,11 +80,12 @@ bun run start
 |-----|--------|
 | `j/k` | Navigate |
 | `PgDn/PgUp` | Page navigation |
-| Type | Filter pods |
+| `/` | Search pods (filters list) |
+| Type | Quick filter (type-ahead) |
 | `Enter` | Select pod |
 | `Ctrl+S` | Shell into pod |
 | `Ctrl+R` | Refresh |
-| `Esc` | Back to home |
+| `Esc` | Cancel search / Back to home |
 | `Ctrl+Q` | Quit |
 
 ### Directory Browser
