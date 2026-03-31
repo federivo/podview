@@ -1,0 +1,24 @@
+{
+  "name": "podview",
+  "module": "src/index.tsx",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "bun run src/index.tsx",
+    "typecheck": "tsc --noEmit",
+    "build": "bun build ./src/index.tsx --compile --outfile podview"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "^19.2.14"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@kubernetes/client-node": "^1.4.0",
+    "@opentui/core": "^0.1.93",
+    "@opentui/react": "^0.1.93",
+    "react": "^19.2.4"
+  }
+}
