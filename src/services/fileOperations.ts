@@ -69,6 +69,21 @@ export async function readFile(
   return result.stdout;
 }
 
+export async function getWorkingDirectory(
+  namespace: string,
+  podName: string,
+  container: string
+): Promise<string | null> {
+  const result = await execInPod(namespace, podName, container, [
+    'pwd',
+  ]);
+  if (result.exitCode === 0) {
+    const dir = result.stdout.trim();
+    if (dir && dir.startsWith('/')) return dir;
+  }
+  return null;
+}
+
 export async function directoryExists(
   namespace: string,
   podName: string,

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { listDirectory, directoryExists } from '../services/fileOperations';
+import { listDirectory, getWorkingDirectory } from '../services/fileOperations';
 import type { FileEntry, PodInfo } from '../types';
 
 interface UseFileSystemResult {
@@ -24,7 +24,7 @@ export function useFileSystem(
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [resolvedInitialPath, setResolvedInitialPath] = useState(false);
 
-  // On first mount, check if /var/www/html exists and navigate there
+  // On first mount, resolve container working directory (WORKDIR from Dockerfile)
   useEffect(() => {
     if (!pod || !container || resolvedInitialPath) return;
 
@@ -32,14 +32,13 @@ export function useFileSystem(
 
     async function resolveDefaultPath() {
       try {
-        const exists = await directoryExists(
+        const workdir = await getWorkingDirectory(
           pod!.namespace,
           pod!.name,
-          container!,
-          '/var/www/html'
+          container!
         );
-        if (!cancelled && exists) {
-          setCurrentPath('/var/www/html');
+        if (!cancelled && workdir) {
+          setCurrentPath(workdir);
         }
       } finally {
         if (!cancelled) {
