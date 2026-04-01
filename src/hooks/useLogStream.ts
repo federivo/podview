@@ -18,6 +18,7 @@ interface UseLogStreamResult {
   isPaused: boolean;
   pause: () => void;
   resume: () => void;
+  clear: () => void;
 }
 
 export function useLogStream(
@@ -144,5 +145,10 @@ export function useLogStream(
     }
   }, []);
 
-  return { lines, loading, error, isStreaming, isPaused, pause, resume };
+  const clear = useCallback(() => {
+    bufferRef.current = [];
+    setLines([]);
+  }, []);
+
+  return { lines, loading, error, isStreaming, isPaused, pause, resume, clear };
 }

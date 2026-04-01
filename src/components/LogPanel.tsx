@@ -30,7 +30,7 @@ export function LogPanel({
 }: LogPanelProps) {
   const theme = useTheme();
   const [showTimestamps, setShowTimestamps] = useState(false);
-  const { lines, loading, error, isStreaming, isPaused, pause, resume } = useLogStream(
+  const { lines, loading, error, isStreaming, isPaused, pause, resume, clear: clearLines } = useLogStream(
     pod.namespace,
     pod.name,
     container,
@@ -162,6 +162,12 @@ export function LogPanel({
     if (key.sequence === 'p') {
       if (isPaused) resume();
       else pause();
+      return;
+    }
+
+    if (key.sequence === 'c') {
+      clearLines();
+      setIsTailing(true);
       return;
     }
 
