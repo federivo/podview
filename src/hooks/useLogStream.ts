@@ -5,28 +5,39 @@ const MAX_LINES = 50000;
 const FLUSH_INTERVAL_MS = 100;
 const DEFAULT_TAIL_LINES = 1000;
 
+export interface LogStreamOptions {
+  tailLines?: number;
+  timestamps?: boolean;
+}
+
 interface UseLogStreamResult {
   lines: string[];
   loading: boolean;
   error: string | null;
   isStreaming: boolean;
+  isPaused: boolean;
+  pause: () => void;
+  resume: () => void;
 }
 
 export function useLogStream(
   namespace: string,
   podName: string,
   container: string,
-  tailLines: number = DEFAULT_TAIL_LINES
+  options: LogStreamOptions = {}
 ): UseLogStreamResult {
+  const { tailLines = DEFAULT_TAIL_LINES, timestamps = false } = options;
   const [lines, setLines] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
 
+  const [isPaused, setIsPaused] = useState(false);
   const bufferRef = useRef<string[]>([]);
   const partialLineRef = useRef('');
   const flushTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedRef = useRef(false);
+  const procRef = useRef<ReturnType<typeof spawn> | null>(null);
 
   const flush = useCallback(() => {
     if (bufferRef.current.length === 0) return;
@@ -44,14 +55,23 @@ export function useLogStream(
   useEffect(() => {
     let cancelled = false;
     startedRef.current = false;
+    setLines([]);
+    setError(null);
+    setLoading(true);
+    setIsStreaming(false);
+    setIsPaused(false);
 
-    const proc = spawn('kubectl', [
+    const args = [
       'logs', '-f',
       '--tail', String(tailLines),
       '-n', namespace,
       '-c', container,
-      podName,
-    ]);
+    ];
+    if (timestamps) args.push('--timestamps');
+    args.push(podName);
+
+    const proc = spawn('kubectl', args);
+    procRef.current = proc;
 
     proc.stdout.on('data', (chunk: Buffer) => {
       if (cancelled) return;
@@ -104,10 +124,25 @@ export function useLogStream(
       }
       flush();
       proc.kill();
+      procRef.current = null;
       partialLineRef.current = '';
       bufferRef.current = [];
     };
-  }, [namespace, podName, container, tailLines, flush]);
+  }, [namespace, podName, container, tailLines, timestamps, flush]);
 
-  return { lines, loading, error, isStreaming };
+  const pause = useCallback(() => {
+    if (procRef.current?.stdout) {
+      procRef.current.stdout.pause();
+      setIsPaused(true);
+    }
+  }, []);
+
+  const resume = useCallback(() => {
+    if (procRef.current?.stdout) {
+      procRef.current.stdout.resume();
+      setIsPaused(false);
+    }
+  }, []);
+
+  return { lines, loading, error, isStreaming, isPaused, pause, resume };
 }

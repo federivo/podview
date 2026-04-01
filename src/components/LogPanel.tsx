@@ -4,6 +4,7 @@ import type { KeyEvent } from '@opentui/core';
 import { useLogStream } from '../hooks/useLogStream';
 import { useTextSearch } from '../hooks/useTextSearch';
 import { useTheme } from '../theme';
+import { detectLogLevel, logLevelColor } from '../utils/logLevel';
 import type { PodInfo } from '../types';
 
 interface LogPanelProps {
@@ -28,10 +29,12 @@ export function LogPanel({
   active,
 }: LogPanelProps) {
   const theme = useTheme();
-  const { lines, loading, error, isStreaming } = useLogStream(
+  const [showTimestamps, setShowTimestamps] = useState(false);
+  const { lines, loading, error, isStreaming, isPaused, pause, resume } = useLogStream(
     pod.namespace,
     pod.name,
-    container
+    container,
+    { timestamps: showTimestamps }
   );
   const {
     query,
@@ -47,6 +50,7 @@ export function LogPanel({
 
   const [scrollOffset, setScrollOffset] = useState(0);
   const [isTailing, setIsTailing] = useState(true);
+  const [wrapEnabled, setWrapEnabled] = useState(true);
   const [searchMode, setSearchMode] = useState(false);
   const [searchInput, setSearchInput] = useState('');
 
@@ -59,8 +63,11 @@ export function LogPanel({
     const rows: WrappedRow[] = [];
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!;
-      if (line.length <= contentWidth) {
-        rows.push({ lineNumber: i, text: line, isFirstRow: true });
+      if (!wrapEnabled || line.length <= contentWidth) {
+        const text = !wrapEnabled && line.length > contentWidth
+          ? line.slice(0, contentWidth - 1) + '\u2026'
+          : line;
+        rows.push({ lineNumber: i, text, isFirstRow: true });
       } else {
         for (let offset = 0; offset < line.length; offset += contentWidth) {
           rows.push({
@@ -72,7 +79,7 @@ export function LogPanel({
       }
     }
     return rows;
-  }, [lines, contentWidth]);
+  }, [lines, contentWidth, wrapEnabled]);
 
   const lineToRowIndex = useMemo(() => {
     const map = new Map<number, number>();
@@ -142,6 +149,22 @@ export function LogPanel({
       return;
     }
 
+    if (key.sequence === 'w') {
+      setWrapEnabled((v) => !v);
+      return;
+    }
+
+    if (key.sequence === 't') {
+      setShowTimestamps((v) => !v);
+      return;
+    }
+
+    if (key.sequence === 'p') {
+      if (isPaused) resume();
+      else pause();
+      return;
+    }
+
     if (key.name === '/' || key.sequence === '/') {
       setSearchMode(true);
       setSearchInput(query);
@@ -186,12 +209,16 @@ export function LogPanel({
     }
   });
 
-  const streamIndicator = isStreaming
-    ? (isTailing ? '●' : '○')
-    : '✕';
-  const streamColor = isStreaming
-    ? (isTailing ? theme.success : theme.warning)
-    : theme.error;
+  const streamIndicator = isPaused
+    ? '‖'
+    : isStreaming
+      ? (isTailing ? '●' : '○')
+      : '✕';
+  const streamColor = isPaused
+    ? theme.error
+    : isStreaming
+      ? (isTailing ? theme.success : theme.warning)
+      : theme.error;
 
   const borderColor = active ? theme.accent : theme.textDim;
   const shortName = pod.name.length > innerWidth - 4
@@ -273,11 +300,18 @@ export function LogPanel({
         {visibleRows.map((row, index) => {
           const isMatchLine = matchingLines.has(row.lineNumber);
           const isCurrentMatch = row.lineNumber === currentMatchLine;
+          const level = detectLogLevel(lines[row.lineNumber] ?? '');
+          const levelColor = logLevelColor(level, theme);
+          const textColor = isCurrentMatch
+            ? theme.statusBar
+            : isMatchLine
+              ? theme.warning
+              : levelColor ?? theme.text;
 
           return (
             <box key={scrollOffset + index} height={1} backgroundColor={isCurrentMatch ? theme.warning : undefined}>
               <text>
-                <span fg={isCurrentMatch ? theme.statusBar : isMatchLine ? theme.warning : theme.text}>
+                <span fg={textColor}>
                   {row.text}
                 </span>
               </text>
