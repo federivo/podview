@@ -3,6 +3,7 @@ import { useKeyboard } from '@opentui/react';
 import type { KeyEvent } from '@opentui/core';
 import { useLogStream } from '../hooks/useLogStream';
 import { useTextSearch } from '../hooks/useTextSearch';
+import { useWrappedRows } from '../hooks/useWrappedRows';
 import { useTheme } from '../theme';
 import { detectLogLevel, logLevelColor } from '../utils/logLevel';
 import type { PodInfo } from '../types';
@@ -13,12 +14,6 @@ interface LogPanelProps {
   width: number;
   height: number;
   active: boolean;
-}
-
-interface WrappedRow {
-  lineNumber: number;
-  text: string;
-  isFirstRow: boolean;
 }
 
 export function LogPanel({
@@ -59,27 +54,7 @@ export function LogPanel({
   const visibleHeight = Math.max(1, height - 4);
   const contentWidth = Math.max(1, innerWidth);
 
-  const wrappedRows = useMemo(() => {
-    const rows: WrappedRow[] = [];
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!;
-      if (!wrapEnabled || line.length <= contentWidth) {
-        const text = !wrapEnabled && line.length > contentWidth
-          ? line.slice(0, contentWidth - 1) + '\u2026'
-          : line;
-        rows.push({ lineNumber: i, text, isFirstRow: true });
-      } else {
-        for (let offset = 0; offset < line.length; offset += contentWidth) {
-          rows.push({
-            lineNumber: i,
-            text: line.slice(offset, offset + contentWidth),
-            isFirstRow: offset === 0,
-          });
-        }
-      }
-    }
-    return rows;
-  }, [lines, contentWidth, wrapEnabled]);
+  const wrappedRows = useWrappedRows(lines, contentWidth, wrapEnabled);
 
   const lineToRowIndex = useMemo(() => {
     const map = new Map<number, number>();
