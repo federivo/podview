@@ -261,7 +261,6 @@ export function LogPanel({
         <text>
           <span fg={streamColor}>{streamIndicator} </span>
           <span fg={borderColor}>{shortName}</span>
-          <span fg={theme.textDim}> ({lines.length})</span>
           {searchMode && (
             <span fg={theme.accent}> /{searchInput}</span>
           )}

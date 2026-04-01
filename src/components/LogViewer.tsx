@@ -248,10 +248,9 @@ export function LogViewer({
         <text>
           <strong><span fg={theme.accent}>Logs: {pod.name}/{container}</span></strong>
           <span fg={streamStatusColor}>{streamStatus}</span>
-          <span fg={theme.textDim}>
-            {' '}({lines.length} lines)
-            {isSearching && ` [${currentMatchIndex + 1}/${totalMatches} matches]`}
-          </span>
+          {isSearching && (
+            <span fg={theme.textDim}> [{currentMatchIndex + 1}/{totalMatches} matches]</span>
+          )}
         </text>
       </box>
 

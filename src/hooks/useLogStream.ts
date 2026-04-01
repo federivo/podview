@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import * as k8s from '@kubernetes/client-node';
-import { PassThrough } from 'stream';
-import { getKubeConfig } from '../services/kubernetes';
+import { spawn } from 'child_process';
 
 const MAX_LINES = 50000;
 const FLUSH_INTERVAL_MS = 100;
@@ -27,8 +25,8 @@ export function useLogStream(
 
   const bufferRef = useRef<string[]>([]);
   const partialLineRef = useRef('');
-  const abortRef = useRef<AbortController | null>(null);
   const flushTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startedRef = useRef(false);
 
   const flush = useCallback(() => {
     if (bufferRef.current.length === 0) return;
@@ -45,66 +43,58 @@ export function useLogStream(
 
   useEffect(() => {
     let cancelled = false;
-    const stream = new PassThrough();
+    startedRef.current = false;
 
-    stream.on('data', (chunk: Buffer) => {
+    const proc = spawn('kubectl', [
+      'logs', '-f',
+      '--tail', String(tailLines),
+      '-n', namespace,
+      '-c', container,
+      podName,
+    ]);
+
+    proc.stdout.on('data', (chunk: Buffer) => {
+      if (cancelled) return;
       const text = partialLineRef.current + chunk.toString();
       const parts = text.split('\n');
-      // Last element is either empty (line ended with \n) or a partial line
       partialLineRef.current = parts.pop() ?? '';
       if (parts.length > 0) {
         bufferRef.current.push(...parts);
       }
-      if (loading && !cancelled) {
+      if (!startedRef.current) {
+        startedRef.current = true;
+        setIsStreaming(true);
         setLoading(false);
       }
     });
 
-    stream.on('end', () => {
-      // Flush any remaining partial line
+    let stderrBuf = '';
+    proc.stderr.on('data', (chunk: Buffer) => {
+      stderrBuf += chunk.toString();
+    });
+
+    proc.on('close', (code) => {
+      if (cancelled) return;
+      // Flush remaining partial line
       if (partialLineRef.current) {
         bufferRef.current.push(partialLineRef.current);
         partialLineRef.current = '';
       }
       flush();
-      if (!cancelled) {
-        setIsStreaming(false);
+      setIsStreaming(false);
+      if (code !== 0 && stderrBuf.trim()) {
+        setError(stderrBuf.trim());
       }
+      setLoading(false);
     });
 
-    stream.on('error', (err) => {
-      if (!cancelled) {
-        setError(err instanceof Error ? err.message : 'Stream error');
-        setIsStreaming(false);
-      }
+    proc.on('error', (err) => {
+      if (cancelled) return;
+      setError(err.message);
+      setLoading(false);
     });
 
-    // Start flush interval
     flushTimerRef.current = setInterval(flush, FLUSH_INTERVAL_MS);
-
-    const kc = getKubeConfig();
-    const log = new k8s.Log(kc);
-
-    log
-      .log(namespace, podName, container, stream, {
-        follow: true,
-        tailLines,
-      })
-      .then((abort) => {
-        if (cancelled) {
-          abort.abort();
-          return;
-        }
-        abortRef.current = abort;
-        setIsStreaming(true);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to start log stream');
-          setLoading(false);
-        }
-      });
 
     return () => {
       cancelled = true;
@@ -113,11 +103,7 @@ export function useLogStream(
         flushTimerRef.current = null;
       }
       flush();
-      if (abortRef.current) {
-        abortRef.current.abort();
-        abortRef.current = null;
-      }
-      stream.destroy();
+      proc.kill();
       partialLineRef.current = '';
       bufferRef.current = [];
     };

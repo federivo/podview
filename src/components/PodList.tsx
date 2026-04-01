@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useKeyboard, useTerminalDimensions } from '@opentui/react';
 import type { KeyEvent } from '@opentui/core';
 import { usePods } from '../hooks/usePods';
+import { usePodActivity } from '../hooks/usePodActivity';
 import { useTheme } from '../theme';
 import type { Theme } from '../theme';
 import { launchShell } from '../services/launchShell';
@@ -35,6 +36,7 @@ export function PodList({ namespace, onSelect, onLogs, onBack, onQuit }: PodList
   const theme = useTheme();
   const { height: terminalHeight } = useTerminalDimensions();
   const { pods, loading, error, refresh } = usePods(namespace);
+  const activityMap = usePodActivity(pods);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [scrollOffset, setScrollOffset] = useState(0);
   const [containerIndex, setContainerIndex] = useState(0);
@@ -342,6 +344,7 @@ export function PodList({ namespace, onSelect, onLogs, onBack, onQuit }: PodList
           const actualIndex = scrollOffset + index;
           const isSelected = actualIndex === selectedIndex;
           const isMarked = markedPods.has(pod.name);
+          const isActive = activityMap.get(pod.name) ?? false;
           const statusColor = getStatusColor(pod.status, theme);
 
           return (
@@ -352,6 +355,7 @@ export function PodList({ namespace, onSelect, onLogs, onBack, onQuit }: PodList
                   {pod.name}
                 </span>
                 <span fg={statusColor}> [{pod.status}]</span>
+                {isActive && <span fg={theme.success}> ●</span>}
                 {pod.containers.length > 1 && (
                   <span fg={theme.textDim}> ({pod.containers.length} containers)</span>
                 )}
