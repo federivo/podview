@@ -23,4 +23,9 @@ export interface SearchMatch {
   endIndex: number;
 }
 
+export interface LogTarget {
+  pod: PodInfo;
+  container: string;
+}
+
 export type View = 'home' | 'pods' | 'explorer' | 'viewer' | 'logs';

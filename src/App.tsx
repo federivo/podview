@@ -8,7 +8,7 @@ import { LogViewer } from './components/LogViewer';
 import { StatusBar } from './components/StatusBar';
 import { ThemeContext, themes } from './theme';
 import type { Theme } from './theme';
-import type { View, PodInfo } from './types';
+import type { View, PodInfo, LogTarget } from './types';
 
 export function App() {
   const { height: rows } = useTerminalDimensions();
@@ -19,6 +19,7 @@ export function App() {
   const [selectedPod, setSelectedPod] = useState<PodInfo | null>(null);
   const [selectedContainer, setSelectedContainer] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [logTargets, setLogTargets] = useState<LogTarget[]>([]);
 
   const handleEnter = useCallback((context: string, namespace: string) => {
     setActiveContext(context);
@@ -42,9 +43,12 @@ export function App() {
     setView('explorer');
   }, []);
 
-  const handleOpenLogs = useCallback((pod: PodInfo, container: string) => {
-    setSelectedPod(pod);
-    setSelectedContainer(container);
+  const handleOpenLogs = useCallback((targets: LogTarget[]) => {
+    setLogTargets(targets);
+    if (targets.length === 1) {
+      setSelectedPod(targets[0]!.pod);
+      setSelectedContainer(targets[0]!.container);
+    }
     setView('logs');
   }, []);
 
@@ -53,6 +57,7 @@ export function App() {
     setSelectedPod(null);
     setSelectedContainer(null);
     setSelectedFile(null);
+    setLogTargets([]);
   }, []);
 
   const handleBackToHome = useCallback(() => {
@@ -93,13 +98,16 @@ export function App() {
       return null;
     }
 
-    if (view === 'logs') {
+    if (view === 'logs' && logTargets.length > 0) {
       const contentHeight = rows - 1;
+      // Single pod: full screen LogViewer
+      // Multi-pod: grid will come in Phase 3, for now show first target
+      const target = logTargets[0]!;
       return (
         <box flexDirection="column" width="100%" height="100%">
           <LogViewer
-            pod={selectedPod}
-            container={selectedContainer}
+            pod={target.pod}
+            container={target.container}
             height={contentHeight}
             onBack={handleBackToPods}
             onQuit={handleQuit}
