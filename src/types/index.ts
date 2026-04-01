@@ -23,4 +23,4 @@ export interface SearchMatch {
   endIndex: number;
 }
 
-export type View = 'home' | 'pods' | 'explorer' | 'viewer';
+export type View = 'home' | 'pods' | 'explorer' | 'viewer' | 'logs';

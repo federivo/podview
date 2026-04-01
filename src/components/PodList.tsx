@@ -11,6 +11,7 @@ import type { PodInfo } from '../types';
 interface PodListProps {
   namespace: string;
   onSelect: (pod: PodInfo, container: string) => void;
+  onLogs: (pod: PodInfo, container: string) => void;
   onBack: () => void;
   onQuit: () => void;
 }
@@ -30,7 +31,7 @@ function getStatusColor(status: string, theme: Theme): string {
   }
 }
 
-export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
+export function PodList({ namespace, onSelect, onLogs, onBack, onQuit }: PodListProps) {
   const theme = useTheme();
   const { height: terminalHeight } = useTerminalDimensions();
   const { pods, loading, error, refresh } = usePods(namespace);
@@ -39,6 +40,7 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
   const [containerIndex, setContainerIndex] = useState(0);
   const [selectingContainer, setSelectingContainer] = useState(false);
   const [shellMode, setShellMode] = useState(false);
+  const [logsMode, setLogsMode] = useState(false);
   const [filterText, setFilterText] = useState('');
   const filterTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [searchMode, setSearchMode] = useState(false);
@@ -106,6 +108,20 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
       return;
     }
 
+    if (key.sequence === 'l' && !selectingContainer && !searchMode) {
+      const pod = filteredPods[selectedIndex];
+      if (pod) {
+        if (pod.containers.length === 1) {
+          onLogs(pod, pod.containers[0]!);
+        } else {
+          setLogsMode(true);
+          setSelectingContainer(true);
+          setContainerIndex(0);
+        }
+      }
+      return;
+    }
+
     if (selectingContainer) {
       const pod = filteredPods[selectedIndex];
       if (!pod) return;
@@ -120,6 +136,9 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
           if (shellMode) {
             launchShell(namespace, pod.name, container);
             setShellMode(false);
+          } else if (logsMode) {
+            onLogs(pod, container);
+            setLogsMode(false);
           } else {
             onSelect(pod, container);
           }
@@ -130,6 +149,7 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
         setSelectingContainer(false);
         setContainerIndex(0);
         setShellMode(false);
+        setLogsMode(false);
       }
       return;
     }
@@ -338,7 +358,7 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
           <span fg={theme.text}>
             {searchMode
               ? ' j/k: navigate | Enter: select | Esc: cancel search '
-              : ' j/k: navigate | /: search | type: filter | Enter: select | ^S: shell | ^R: refresh | Esc: back | ^Q: quit '}
+              : ' j/k: navigate | /: search | type: filter | Enter: select | l: logs | ^S: shell | ^R: refresh | Esc: back | ^Q: quit '}
           </span>
         </text>
       </box>

@@ -4,6 +4,7 @@ import { HomeScreen } from './components/HomeScreen';
 import { PodList } from './components/PodList';
 import { FileExplorer } from './components/FileExplorer';
 import { FileViewer } from './components/FileViewer';
+import { LogViewer } from './components/LogViewer';
 import { StatusBar } from './components/StatusBar';
 import { ThemeContext, themes } from './theme';
 import type { Theme } from './theme';
@@ -41,6 +42,12 @@ export function App() {
     setView('explorer');
   }, []);
 
+  const handleOpenLogs = useCallback((pod: PodInfo, container: string) => {
+    setSelectedPod(pod);
+    setSelectedContainer(container);
+    setView('logs');
+  }, []);
+
   const handleBackToPods = useCallback(() => {
     setView('pods');
     setSelectedPod(null);
@@ -74,6 +81,7 @@ export function App() {
           <PodList
             namespace={activeNamespace}
             onSelect={handlePodSelect}
+            onLogs={handleOpenLogs}
             onBack={handleBackToHome}
             onQuit={handleQuit}
           />
@@ -83,6 +91,21 @@ export function App() {
 
     if (!selectedPod || !selectedContainer) {
       return null;
+    }
+
+    if (view === 'logs') {
+      const contentHeight = rows - 1;
+      return (
+        <box flexDirection="column" width="100%" height="100%">
+          <LogViewer
+            pod={selectedPod}
+            container={selectedContainer}
+            height={contentHeight}
+            onBack={handleBackToPods}
+            onQuit={handleQuit}
+          />
+        </box>
+      );
     }
 
     const contentHeight = rows - 2;
