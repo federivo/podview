@@ -6,7 +6,7 @@
 [![Kubernetes](https://img.shields.io/badge/kubernetes-client-326ce5?logo=kubernetes&logoColor=white)](https://kubernetes.io)
 [![TypeScript](https://img.shields.io/badge/lang-TypeScript-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 
-**Browse files, view content, and shell into your Kubernetes pods — without leaving the terminal.**
+**Browse files, view content, shell into, and tail logs for your Kubernetes pods — without leaving the terminal.**
 
 podview is an interactive TUI that replaces the repetitive `kubectl exec` workflow with vim-style navigation, real-time search, and type-ahead filtering across pods, directories, and files.
 
@@ -17,6 +17,9 @@ podview is an interactive TUI that replaces the repetitive `kubectl exec` workfl
 - **Directory browser** — starts in the container's working directory, with go-to path and filtering
 - **File viewer** — line wrapping, `/` search with match highlighting, vim-style scrolling
 - **Interactive shell** — `Ctrl+S` to drop into bash (or sh) inside any container
+- **Log viewer** — streaming real-time logs (`kubectl logs -f`) with auto-tail, in-log search, log level coloring, word wrap, timestamp toggle, and pause/resume/clear controls
+- **Multi-pod log grid** — select multiple pods with `Space` and view their logs side by side in a smart auto-sized grid; each panel has independent scroll, tail, and search; `Tab` to switch focus, `Enter` to zoom
+- **Activity indicators** — green dot next to pods with recent log activity, updated every 3 seconds
 - **5 color themes** — Catppuccin Mocha, Dracula, Nord, Gruvbox Dark, Tokyo Night
 
 ## Installation
@@ -82,7 +85,9 @@ bun run start
 | `PgDn/PgUp` | Page navigation |
 | `/` | Search pods (filters list) |
 | Type | Quick filter (type-ahead) |
-| `Enter` | Select pod |
+| `Space` | Mark/unmark pod for multi-pod log view |
+| `Enter` | Select pod (open file explorer) |
+| `l` | Open log viewer (single pod, or all marked pods) |
 | `Ctrl+S` | Shell into pod |
 | `Ctrl+R` | Refresh |
 | `Esc` | Cancel search / Back to home |
@@ -114,6 +119,32 @@ bun run start
 | `Esc` | Clear search / Back to directory |
 | `Ctrl+Q` | Quit |
 
+### Log Viewer (single pod)
+| Key | Action |
+|-----|--------|
+| `j/k` | Scroll (pauses auto-tail) |
+| `PgDn/PgUp` | Page scroll (pauses auto-tail) |
+| `g` | Go to top |
+| `Shift+G` | Go to bottom / resume auto-tail |
+| `/` | Search within logs |
+| `n/N` | Next/previous match |
+| `w` | Toggle word wrap |
+| `t` | Toggle RFC3339 timestamps |
+| `p` | Pause/resume log stream |
+| `c` | Clear log buffer (keeps stream alive) |
+| `Esc` | Back to pod list |
+| `Ctrl+Q` | Quit |
+
+### Log Grid (multi-pod)
+| Key | Action |
+|-----|--------|
+| `Tab` | Focus next panel |
+| `Shift+Tab` | Focus previous panel |
+| `j/k` | Scroll focused panel |
+| `Enter` | Zoom focused panel to fullscreen |
+| `Esc` | Return to grid from zoom / Back to pod list |
+| `Ctrl+Q` | Quit |
+
 ### Shell
 | Key | Action |
 |-----|--------|
@@ -139,9 +170,12 @@ src/
   types/index.ts         TypeScript interfaces
   components/
     HomeScreen.tsx       Context/namespace/theme selection
-    PodList.tsx          Pod listing with filter
+    PodList.tsx          Pod listing with filter and multi-select
     FileExplorer.tsx     Directory browser
     FileViewer.tsx       File content viewer with search
+    LogViewer.tsx        Single-pod streaming log viewer
+    LogPanel.tsx         Individual log panel (used in grid)
+    LogGrid.tsx          Multi-pod log grid with focus management
     Breadcrumb.tsx       Path navigation header
     SearchBar.tsx        In-file search input
     StatusBar.tsx        Help text footer
@@ -151,12 +185,16 @@ src/
     useFileSystem.ts     Directory listing state
     useFileContent.ts    File content state
     useTextSearch.ts     Search logic
+    useLogStream.ts      Streaming log state with 50k line buffer
+    usePodActivity.ts    Pod activity detection via K8s API polling
   services/
     kubernetes.ts        K8s client configuration
     podExec.ts           Command execution in pods
     fileOperations.ts    File/directory operations
     shellSession.ts      Interactive shell session
     launchShell.ts       Shell launch orchestration
+  utils/
+    logLevel.ts          Log level detection and color mapping
 ```
 
 </details>
