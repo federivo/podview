@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useKeyboard, useTerminalDimensions } from '@opentui/react';
 import type { KeyEvent } from '@opentui/core';
 import { LogPanel } from './LogPanel';
+import { LogViewer } from './LogViewer';
 import { useTheme } from '../theme';
 import type { LogTarget } from '../types';
 
@@ -26,15 +27,17 @@ export function LogGrid({ targets, onBack, onQuit }: LogGridProps) {
   const theme = useTheme();
   const { width: termWidth, height: termHeight } = useTerminalDimensions();
   const [focusIndex, setFocusIndex] = useState(0);
+  const [zoomedIndex, setZoomedIndex] = useState<number | null>(null);
 
   const { cols, rows } = useMemo(() => computeGrid(targets.length), [targets.length]);
 
-  // Reserve 1 line for the bottom status bar
   const availableHeight = termHeight - 1;
   const panelWidth = Math.floor(termWidth / cols);
   const panelHeight = Math.floor(availableHeight / rows);
 
   useKeyboard((key: KeyEvent) => {
+    if (zoomedIndex !== null) return;
+
     if (key.ctrl && (key.name === 'q' || key.name === 'c')) {
       onQuit();
       return;
@@ -42,6 +45,11 @@ export function LogGrid({ targets, onBack, onQuit }: LogGridProps) {
 
     if (key.name === 'escape') {
       onBack();
+      return;
+    }
+
+    if (key.name === 'return') {
+      setZoomedIndex(focusIndex);
       return;
     }
 
@@ -55,7 +63,6 @@ export function LogGrid({ targets, onBack, onQuit }: LogGridProps) {
     }
   });
 
-  // Build rows of panels
   const gridRows: LogTarget[][] = [];
   for (let r = 0; r < rows; r++) {
     const start = r * cols;
@@ -65,6 +72,21 @@ export function LogGrid({ targets, onBack, onQuit }: LogGridProps) {
 
   const focusedTarget = targets[focusIndex];
 
+  if (zoomedIndex !== null) {
+    const target = targets[zoomedIndex]!;
+    return (
+      <box flexDirection="column" width="100%" height="100%">
+        <LogViewer
+          pod={target.pod}
+          container={target.container}
+          height={termHeight}
+          onBack={() => setZoomedIndex(null)}
+          onQuit={onQuit}
+        />
+      </box>
+    );
+  }
+
   return (
     <box flexDirection="column" width="100%" height="100%">
       <box flexDirection="column" flexGrow={1}>
@@ -73,7 +95,6 @@ export function LogGrid({ targets, onBack, onQuit }: LogGridProps) {
             {row.map((target, colIndex) => {
               const globalIndex = rowIndex * cols + colIndex;
               const isLastCol = colIndex === row.length - 1;
-              // Give extra width to the last column to fill remaining space
               const w = isLastCol ? termWidth - panelWidth * colIndex : panelWidth;
 
               return (
@@ -93,8 +114,8 @@ export function LogGrid({ targets, onBack, onQuit }: LogGridProps) {
       <box height={1} backgroundColor={theme.statusBar}>
         <text>
           <span fg={theme.text}>
-            {' '}Tab/S-Tab: switch panel | j/k: scroll | G: tail | /: search | Esc: back | ^Q: quit
-            {focusedTarget ? ` | Focus: ${focusedTarget.pod.name}` : ''}
+            {' '}Tab/S-Tab: switch | Enter: zoom | j/k: scroll | G: tail | /: search | w: wrap | t: timestamps | p: pause | Esc: back
+            {focusedTarget ? ` | ${focusedTarget.pod.name}` : ''}
           </span>
         </text>
       </box>
