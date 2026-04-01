@@ -2,15 +2,19 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useKeyboard, useTerminalDimensions } from '@opentui/react';
 import type { KeyEvent } from '@opentui/core';
 import { usePods } from '../hooks/usePods';
+import { usePodActivity } from '../hooks/usePodActivity';
 import { useTheme } from '../theme';
 import type { Theme } from '../theme';
 import { launchShell } from '../services/launchShell';
 import { Spinner } from './Spinner';
-import type { PodInfo } from '../types';
+import type { PodInfo, LogTarget } from '../types';
 
 interface PodListProps {
   namespace: string;
+  markedPods: Set<string>;
+  onMarkedPodsChange: (marked: Set<string>) => void;
   onSelect: (pod: PodInfo, container: string) => void;
+  onLogs: (targets: LogTarget[]) => void;
   onBack: () => void;
   onQuit: () => void;
 }
@@ -30,15 +34,17 @@ function getStatusColor(status: string, theme: Theme): string {
   }
 }
 
-export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
+export function PodList({ namespace, markedPods, onMarkedPodsChange, onSelect, onLogs, onBack, onQuit }: PodListProps) {
   const theme = useTheme();
   const { height: terminalHeight } = useTerminalDimensions();
   const { pods, loading, error, refresh } = usePods(namespace);
+  const activityMap = usePodActivity(pods);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [scrollOffset, setScrollOffset] = useState(0);
   const [containerIndex, setContainerIndex] = useState(0);
   const [selectingContainer, setSelectingContainer] = useState(false);
   const [shellMode, setShellMode] = useState(false);
+  const [logsMode, setLogsMode] = useState(false);
   const [filterText, setFilterText] = useState('');
   const filterTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [searchMode, setSearchMode] = useState(false);
@@ -106,6 +112,33 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
       return;
     }
 
+    if (key.sequence === 'l' && !selectingContainer && !searchMode) {
+      if (markedPods.size > 0) {
+        // Multi-pod logs: use first container for each marked pod
+        const targets: LogTarget[] = [];
+        for (const pod of filteredPods) {
+          if (markedPods.has(pod.name) && pod.containers.length > 0) {
+            targets.push({ pod, container: pod.containers[0]! });
+          }
+        }
+        if (targets.length > 0) {
+          onLogs(targets);
+        }
+      } else {
+        const pod = filteredPods[selectedIndex];
+        if (pod) {
+          if (pod.containers.length === 1) {
+            onLogs([{ pod, container: pod.containers[0]! }]);
+          } else {
+            setLogsMode(true);
+            setSelectingContainer(true);
+            setContainerIndex(0);
+          }
+        }
+      }
+      return;
+    }
+
     if (selectingContainer) {
       const pod = filteredPods[selectedIndex];
       if (!pod) return;
@@ -120,6 +153,9 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
           if (shellMode) {
             launchShell(namespace, pod.name, container);
             setShellMode(false);
+          } else if (logsMode) {
+            onLogs([{ pod, container }]);
+            setLogsMode(false);
           } else {
             onSelect(pod, container);
           }
@@ -130,6 +166,7 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
         setSelectingContainer(false);
         setContainerIndex(0);
         setShellMode(false);
+        setLogsMode(false);
       }
       return;
     }
@@ -196,6 +233,20 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
         } else {
           clearFilterTimer();
         }
+      }
+      return;
+    } else if (key.name === 'space') {
+      const pod = filteredPods[selectedIndex];
+      if (pod) {
+        const next = new Set(markedPods);
+        if (next.has(pod.name)) {
+          next.delete(pod.name);
+        } else {
+          next.add(pod.name);
+        }
+        onMarkedPodsChange(next);
+        // Move cursor down after marking
+        setSelectedIndex((i) => Math.min(i + 1, filteredPods.length - 1));
       }
       return;
     } else if (key.sequence === '/') {
@@ -267,6 +318,9 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
         <text>
           <strong><span fg={theme.accent}>Pods in {namespace}</span></strong>
           <span fg={theme.textDim}> ({filteredPods.length}{searchMode ? `/${pods.length}` : ''} pods)</span>
+          {markedPods.size > 0 && (
+            <span fg={theme.accent}> [{markedPods.size} marked]</span>
+          )}
         </text>
       </box>
       {searchMode && (
@@ -288,16 +342,19 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
         {filteredPods.slice(scrollOffset, scrollOffset + visibleHeight).map((pod, index) => {
           const actualIndex = scrollOffset + index;
           const isSelected = actualIndex === selectedIndex;
+          const isMarked = markedPods.has(pod.name);
+          const isActive = activityMap.get(pod.name) ?? false;
           const statusColor = getStatusColor(pod.status, theme);
 
           return (
             <box key={pod.name} height={1} backgroundColor={isSelected ? theme.surface : undefined}>
               <text>
-                <span fg={isSelected ? theme.text : theme.textSecondary}>
-                  {isSelected ? '▸ ' : '  '}
+                <span fg={isMarked ? theme.accent : (isSelected ? theme.text : theme.textSecondary)}>
+                  {isMarked ? '✓ ' : (isSelected ? '▸ ' : '  ')}
                   {pod.name}
                 </span>
                 <span fg={statusColor}> [{pod.status}]</span>
+                {isActive && <span fg={theme.success}> ●</span>}
                 {pod.containers.length > 1 && (
                   <span fg={theme.textDim}> ({pod.containers.length} containers)</span>
                 )}
@@ -338,7 +395,7 @@ export function PodList({ namespace, onSelect, onBack, onQuit }: PodListProps) {
           <span fg={theme.text}>
             {searchMode
               ? ' j/k: navigate | Enter: select | Esc: cancel search '
-              : ' j/k: navigate | /: search | type: filter | Enter: select | ^S: shell | ^R: refresh | Esc: back | ^Q: quit '}
+              : ' j/k: navigate | /: search | Space: mark | l: logs | Enter: select | ^S: shell | ^R: refresh | Esc: back | ^Q: quit '}
           </span>
         </text>
       </box>
