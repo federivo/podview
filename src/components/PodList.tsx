@@ -11,6 +11,8 @@ import type { PodInfo, LogTarget } from '../types';
 
 interface PodListProps {
   namespace: string;
+  markedPods: Set<string>;
+  onMarkedPodsChange: (marked: Set<string>) => void;
   onSelect: (pod: PodInfo, container: string) => void;
   onLogs: (targets: LogTarget[]) => void;
   onBack: () => void;
@@ -32,7 +34,7 @@ function getStatusColor(status: string, theme: Theme): string {
   }
 }
 
-export function PodList({ namespace, onSelect, onLogs, onBack, onQuit }: PodListProps) {
+export function PodList({ namespace, markedPods, onMarkedPodsChange, onSelect, onLogs, onBack, onQuit }: PodListProps) {
   const theme = useTheme();
   const { height: terminalHeight } = useTerminalDimensions();
   const { pods, loading, error, refresh } = usePods(namespace);
@@ -43,7 +45,6 @@ export function PodList({ namespace, onSelect, onLogs, onBack, onQuit }: PodList
   const [selectingContainer, setSelectingContainer] = useState(false);
   const [shellMode, setShellMode] = useState(false);
   const [logsMode, setLogsMode] = useState(false);
-  const [markedPods, setMarkedPods] = useState<Set<string>>(new Set());
   const [filterText, setFilterText] = useState('');
   const filterTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [searchMode, setSearchMode] = useState(false);
@@ -237,15 +238,13 @@ export function PodList({ namespace, onSelect, onLogs, onBack, onQuit }: PodList
     } else if (key.name === 'space') {
       const pod = filteredPods[selectedIndex];
       if (pod) {
-        setMarkedPods((prev) => {
-          const next = new Set(prev);
-          if (next.has(pod.name)) {
-            next.delete(pod.name);
-          } else {
-            next.add(pod.name);
-          }
-          return next;
-        });
+        const next = new Set(markedPods);
+        if (next.has(pod.name)) {
+          next.delete(pod.name);
+        } else {
+          next.add(pod.name);
+        }
+        onMarkedPodsChange(next);
         // Move cursor down after marking
         setSelectedIndex((i) => Math.min(i + 1, filteredPods.length - 1));
       }

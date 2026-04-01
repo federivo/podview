@@ -21,6 +21,7 @@ export function App() {
   const [selectedContainer, setSelectedContainer] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [logTargets, setLogTargets] = useState<LogTarget[]>([]);
+  const [markedPods, setMarkedPods] = useState<Set<string>>(new Set());
 
   const handleEnter = useCallback((context: string, namespace: string) => {
     setActiveContext(context);
@@ -59,6 +60,7 @@ export function App() {
     setSelectedContainer(null);
     setSelectedFile(null);
     setLogTargets([]);
+    setMarkedPods(new Set());
   }, []);
 
   const handleBackToHome = useCallback(() => {
@@ -86,6 +88,8 @@ export function App() {
         <box flexDirection="column" width="100%" height="100%">
           <PodList
             namespace={activeNamespace}
+            markedPods={markedPods}
+            onMarkedPodsChange={setMarkedPods}
             onSelect={handlePodSelect}
             onLogs={handleOpenLogs}
             onBack={handleBackToHome}
