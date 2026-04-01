@@ -5,6 +5,7 @@ import { PodList } from './components/PodList';
 import { FileExplorer } from './components/FileExplorer';
 import { FileViewer } from './components/FileViewer';
 import { LogViewer } from './components/LogViewer';
+import { LogGrid } from './components/LogGrid';
 import { StatusBar } from './components/StatusBar';
 import { ThemeContext, themes } from './theme';
 import type { Theme } from './theme';
@@ -94,26 +95,34 @@ export function App() {
       );
     }
 
-    if (!selectedPod || !selectedContainer) {
-      return null;
+    if (view === 'logs' && logTargets.length > 0) {
+      if (logTargets.length === 1) {
+        const target = logTargets[0]!;
+        const contentHeight = rows - 1;
+        return (
+          <box flexDirection="column" width="100%" height="100%">
+            <LogViewer
+              pod={target.pod}
+              container={target.container}
+              height={contentHeight}
+              onBack={handleBackToPods}
+              onQuit={handleQuit}
+            />
+          </box>
+        );
+      }
+
+      return (
+        <LogGrid
+          targets={logTargets}
+          onBack={handleBackToPods}
+          onQuit={handleQuit}
+        />
+      );
     }
 
-    if (view === 'logs' && logTargets.length > 0) {
-      const contentHeight = rows - 1;
-      // Single pod: full screen LogViewer
-      // Multi-pod: grid will come in Phase 3, for now show first target
-      const target = logTargets[0]!;
-      return (
-        <box flexDirection="column" width="100%" height="100%">
-          <LogViewer
-            pod={target.pod}
-            container={target.container}
-            height={contentHeight}
-            onBack={handleBackToPods}
-            onQuit={handleQuit}
-          />
-        </box>
-      );
+    if (!selectedPod || !selectedContainer) {
+      return null;
     }
 
     const contentHeight = rows - 2;
