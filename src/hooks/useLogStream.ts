@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { spawn } from 'child_process';
+import { getCurrentContext } from '../services/kubernetes';
 
 const MAX_LINES = 50000;
 const FLUSH_INTERVAL_MS = 100;
@@ -64,6 +65,7 @@ export function useLogStream(
 
     const args = [
       'logs', '-f',
+      '--context', getCurrentContext(),
       '--tail', String(tailLines),
       '-n', namespace,
       '-c', container,
