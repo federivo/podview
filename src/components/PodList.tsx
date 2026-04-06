@@ -17,6 +17,7 @@ interface PodListProps {
   onLogs: (targets: LogTarget[]) => void;
   onBack: () => void;
   onQuit: () => void;
+  fileLogHistory: string[];
 }
 
 function getStatusColor(status: string, theme: Theme): string {
@@ -34,7 +35,7 @@ function getStatusColor(status: string, theme: Theme): string {
   }
 }
 
-export function PodList({ namespace, markedPods, onMarkedPodsChange, onSelect, onLogs, onBack, onQuit }: PodListProps) {
+export function PodList({ namespace, markedPods, onMarkedPodsChange, onSelect, onLogs, onBack, onQuit, fileLogHistory }: PodListProps) {
   const theme = useTheme();
   const { height: terminalHeight } = useTerminalDimensions();
   const { pods, loading, error, refresh } = usePods(namespace);
@@ -49,6 +50,10 @@ export function PodList({ namespace, markedPods, onMarkedPodsChange, onSelect, o
   const filterTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [searchMode, setSearchMode] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [fileLogMode, setFileLogMode] = useState(false);
+  const [fileLogPath, setFileLogPath] = useState('');
+  const [fileLogContainer, setFileLogContainer] = useState<string | null>(null);
+  const [fileLogHistoryIndex, setFileLogHistoryIndex] = useState(-1);
 
   const clearFilterTimer = useCallback(() => {
     if (filterTimeout.current) {
@@ -98,6 +103,36 @@ export function PodList({ namespace, markedPods, onMarkedPodsChange, onSelect, o
       return;
     }
 
+    if (key.ctrl && key.name === 'l') {
+      if (fileLogMode) return;
+      if (markedPods.size > 0) {
+        // Multi-pod file logs: use first container, prompt for path
+        const firstMarked = filteredPods.find((p) => markedPods.has(p.name) && p.containers.length > 0);
+        if (firstMarked) {
+          setFileLogMode(true);
+          setFileLogPath('');
+          setFileLogContainer(firstMarked.containers[0]!);
+        }
+      } else {
+        const pod = filteredPods[selectedIndex];
+        if (pod) {
+          if (pod.containers.length === 1) {
+            setFileLogMode(true);
+            setFileLogPath('');
+            setFileLogContainer(pod.containers[0]!);
+          } else {
+            setFileLogMode(true);
+            setFileLogPath('');
+            setFileLogContainer(null);
+            setLogsMode(true);
+            setSelectingContainer(true);
+            setContainerIndex(0);
+          }
+        }
+      }
+      return;
+    }
+
     if (key.ctrl && key.name === 's') {
       const pod = filteredPods[selectedIndex];
       if (pod) {
@@ -112,7 +147,7 @@ export function PodList({ namespace, markedPods, onMarkedPodsChange, onSelect, o
       return;
     }
 
-    if (key.sequence === 'l' && !selectingContainer && !searchMode) {
+    if (key.sequence === 'l' && !selectingContainer && !searchMode && !fileLogMode) {
       if (markedPods.size > 0) {
         // Multi-pod logs: use first container for each marked pod
         const targets: LogTarget[] = [];
@@ -153,6 +188,9 @@ export function PodList({ namespace, markedPods, onMarkedPodsChange, onSelect, o
           if (shellMode) {
             launchShell(namespace, pod.name, container);
             setShellMode(false);
+          } else if (fileLogMode) {
+            setFileLogContainer(container);
+            setLogsMode(false);
           } else if (logsMode) {
             onLogs([{ pod, container }]);
             setLogsMode(false);
@@ -167,6 +205,76 @@ export function PodList({ namespace, markedPods, onMarkedPodsChange, onSelect, o
         setContainerIndex(0);
         setShellMode(false);
         setLogsMode(false);
+        setFileLogMode(false);
+        setFileLogContainer(null);
+      }
+      return;
+    }
+
+    if (fileLogMode && fileLogContainer && !selectingContainer) {
+      if (key.name === 'escape') {
+        setFileLogMode(false);
+        setFileLogPath('');
+        setFileLogContainer(null);
+        setFileLogHistoryIndex(-1);
+        return;
+      }
+      if (key.name === 'up') {
+        const history = fileLogHistory;
+        if (history.length > 0) {
+          const newIndex = Math.min(fileLogHistoryIndex + 1, history.length - 1);
+          setFileLogHistoryIndex(newIndex);
+          setFileLogPath(history[history.length - 1 - newIndex]!);
+        }
+        return;
+      }
+      if (key.name === 'down') {
+        if (fileLogHistoryIndex > 0) {
+          const newIndex = fileLogHistoryIndex - 1;
+          setFileLogHistoryIndex(newIndex);
+          setFileLogPath(fileLogHistory[fileLogHistory.length - 1 - newIndex]!);
+        } else if (fileLogHistoryIndex === 0) {
+          setFileLogHistoryIndex(-1);
+          setFileLogPath('');
+        }
+        return;
+      }
+      if (key.name === 'return' && fileLogPath.trim()) {
+        const path = fileLogPath.trim();
+        const history = fileLogHistory;
+        if (history[history.length - 1] !== path) {
+          history.push(path);
+        }
+        if (markedPods.size > 0) {
+          const targets: LogTarget[] = [];
+          for (const pod of filteredPods) {
+            if (markedPods.has(pod.name) && pod.containers.length > 0) {
+              targets.push({ pod, container: pod.containers[0]!, filePath: path });
+            }
+          }
+          if (targets.length > 0) {
+            onLogs(targets);
+          }
+        } else {
+          const pod = filteredPods[selectedIndex];
+          if (pod) {
+            onLogs([{ pod, container: fileLogContainer, filePath: path }]);
+          }
+        }
+        setFileLogMode(false);
+        setFileLogPath('');
+        setFileLogContainer(null);
+        setFileLogHistoryIndex(-1);
+        return;
+      }
+      if (key.name === 'backspace') {
+        setFileLogPath((p) => p.slice(0, -1));
+        setFileLogHistoryIndex(-1);
+        return;
+      }
+      if (key.sequence && key.sequence.length === 1 && !key.ctrl && !key.meta) {
+        setFileLogPath((p) => p + key.sequence);
+        setFileLogHistoryIndex(-1);
       }
       return;
     }
@@ -390,12 +498,24 @@ export function PodList({ namespace, markedPods, onMarkedPodsChange, onSelect, o
         </box>
       )}
 
+      {fileLogMode && fileLogContainer && !selectingContainer && (
+        <box height={1} backgroundColor={theme.surface}>
+          <text>
+            <span fg={theme.accent}> Log file path: </span>
+            <span fg={theme.text}>{fileLogPath}</span>
+            <span fg={theme.textDim}>_</span>
+          </text>
+        </box>
+      )}
+
       <box height={1} backgroundColor={theme.statusBar}>
         <text>
           <span fg={theme.text}>
-            {searchMode
-              ? ' j/k: navigate | Enter: select | Esc: cancel search '
-              : ' j/k: navigate | /: search | Space: mark | l: logs | Enter: select | ^S: shell | ^R: refresh | Esc: back | ^Q: quit '}
+            {fileLogMode && fileLogContainer && !selectingContainer
+              ? ' Enter: stream file | Esc: cancel '
+              : searchMode
+                ? ' j/k: navigate | Enter: select | Esc: cancel search '
+                : ' j/k: navigate | /: search | Space: mark | l: logs | ^L: file log | Enter: select | ^S: shell | ^R: refresh | Esc: back | ^Q: quit '}
           </span>
         </text>
       </box>

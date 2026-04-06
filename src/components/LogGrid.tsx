@@ -82,6 +82,7 @@ export function LogGrid({ targets, onBack, onQuit }: LogGridProps) {
           height={termHeight}
           onBack={() => setZoomedIndex(null)}
           onQuit={onQuit}
+          filePath={target.filePath}
         />
       </box>
     );
@@ -105,6 +106,7 @@ export function LogGrid({ targets, onBack, onQuit }: LogGridProps) {
                   width={w}
                   height={panelHeight}
                   active={globalIndex === focusIndex}
+                  filePath={target.filePath}
                 />
               );
             })}

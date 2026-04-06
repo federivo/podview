@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useTerminalDimensions } from '@opentui/react';
 import { HomeScreen } from './components/HomeScreen';
 import { PodList } from './components/PodList';
@@ -22,6 +22,7 @@ export function App() {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [logTargets, setLogTargets] = useState<LogTarget[]>([]);
   const [markedPods, setMarkedPods] = useState<Set<string>>(new Set());
+  const fileLogHistoryRef = useRef<string[]>([]);
 
   const handleEnter = useCallback((context: string, namespace: string) => {
     setActiveContext(context);
@@ -94,6 +95,7 @@ export function App() {
             onLogs={handleOpenLogs}
             onBack={handleBackToHome}
             onQuit={handleQuit}
+            fileLogHistory={fileLogHistoryRef.current}
           />
         </box>
       );
@@ -111,6 +113,7 @@ export function App() {
               height={contentHeight}
               onBack={handleBackToPods}
               onQuit={handleQuit}
+              filePath={target.filePath}
             />
           </box>
         );

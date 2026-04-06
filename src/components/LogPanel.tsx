@@ -14,6 +14,7 @@ interface LogPanelProps {
   width: number;
   height: number;
   active: boolean;
+  filePath?: string;
 }
 
 export function LogPanel({
@@ -22,6 +23,7 @@ export function LogPanel({
   width,
   height,
   active,
+  filePath,
 }: LogPanelProps) {
   const theme = useTheme();
   const [showTimestamps, setShowTimestamps] = useState(false);
@@ -29,7 +31,7 @@ export function LogPanel({
     pod.namespace,
     pod.name,
     container,
-    { timestamps: showTimestamps }
+    { timestamps: showTimestamps, filePath }
   );
   const {
     query,

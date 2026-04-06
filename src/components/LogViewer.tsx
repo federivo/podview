@@ -16,6 +16,7 @@ interface LogViewerProps {
   height: number;
   onBack: () => void;
   onQuit: () => void;
+  filePath?: string;
 }
 
 export function LogViewer({
@@ -24,6 +25,7 @@ export function LogViewer({
   height,
   onBack,
   onQuit,
+  filePath,
 }: LogViewerProps) {
   const theme = useTheme();
   const { width: terminalWidth } = useTerminalDimensions();
@@ -32,7 +34,7 @@ export function LogViewer({
     pod.namespace,
     pod.name,
     container,
-    { timestamps: showTimestamps }
+    { timestamps: showTimestamps, filePath }
   );
   const {
     query,
@@ -205,7 +207,7 @@ export function LogViewer({
       <box flexDirection="column" width="100%" height="100%">
         <box height={1}>
           <text>
-            <strong><span fg={theme.accent}>Logs: {pod.name}/{container}</span></strong>
+            <strong><span fg={theme.accent}>Logs: {pod.name}/{container}{filePath ? ` ${filePath}` : ''}</span></strong>
           </text>
         </box>
         <box flexGrow={1} justifyContent="center" alignItems="center">
@@ -220,7 +222,7 @@ export function LogViewer({
       <box flexDirection="column" width="100%" height="100%">
         <box height={1}>
           <text>
-            <strong><span fg={theme.accent}>Logs: {pod.name}/{container}</span></strong>
+            <strong><span fg={theme.accent}>Logs: {pod.name}/{container}{filePath ? ` ${filePath}` : ''}</span></strong>
           </text>
         </box>
         <box flexGrow={1}>
@@ -254,7 +256,7 @@ export function LogViewer({
     <box flexDirection="column" width="100%" height="100%">
       <box height={1}>
         <text>
-          <strong><span fg={theme.accent}>Logs: {pod.name}/{container}</span></strong>
+          <strong><span fg={theme.accent}>Logs: {pod.name}/{container}{filePath ? ` ${filePath}` : ''}</span></strong>
           <span fg={streamStatusColor}>{streamStatus}</span>
           {showTimestamps && <span fg={theme.textDim}> [ts]</span>}
           {!wrapEnabled && <span fg={theme.textDim}> [nowrap]</span>}

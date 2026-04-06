@@ -26,6 +26,7 @@ export interface SearchMatch {
 export interface LogTarget {
   pod: PodInfo;
   container: string;
+  filePath?: string;
 }
 
 export type View = 'home' | 'pods' | 'explorer' | 'viewer' | 'logs';

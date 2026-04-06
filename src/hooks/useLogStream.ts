@@ -9,6 +9,7 @@ const DEFAULT_TAIL_LINES = 1000;
 export interface LogStreamOptions {
   tailLines?: number;
   timestamps?: boolean;
+  filePath?: string;
 }
 
 interface UseLogStreamResult {
@@ -28,7 +29,7 @@ export function useLogStream(
   container: string,
   options: LogStreamOptions = {}
 ): UseLogStreamResult {
-  const { tailLines = DEFAULT_TAIL_LINES, timestamps = false } = options;
+  const { tailLines = DEFAULT_TAIL_LINES, timestamps = false, filePath } = options;
   const [lines, setLines] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,15 +64,27 @@ export function useLogStream(
     setIsStreaming(false);
     setIsPaused(false);
 
-    const args = [
-      'logs', '-f',
-      '--context', getCurrentContext(),
-      '--tail', String(tailLines),
-      '-n', namespace,
-      '-c', container,
-    ];
-    if (timestamps) args.push('--timestamps');
-    args.push(podName);
+    let args: string[];
+    if (filePath) {
+      args = [
+        'exec',
+        '--context', getCurrentContext(),
+        '-n', namespace,
+        '-c', container,
+        podName, '--',
+        'tail', '-n', String(tailLines), '-f', filePath,
+      ];
+    } else {
+      args = [
+        'logs', '-f',
+        '--context', getCurrentContext(),
+        '--tail', String(tailLines),
+        '-n', namespace,
+        '-c', container,
+      ];
+      if (timestamps) args.push('--timestamps');
+      args.push(podName);
+    }
 
     const proc = spawn('kubectl', args);
     procRef.current = proc;
@@ -131,7 +144,7 @@ export function useLogStream(
       partialLineRef.current = '';
       bufferRef.current = [];
     };
-  }, [namespace, podName, container, tailLines, timestamps, flush]);
+  }, [namespace, podName, container, tailLines, timestamps, filePath, flush]);
 
   const pause = useCallback(() => {
     if (procRef.current?.stdout) {
